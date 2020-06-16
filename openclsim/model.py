@@ -567,7 +567,7 @@ def conditional_process(
         core.LogState.START,
     )
     ii = 0
-    while (not condition_event.processed) and ii < 10:
+    while (not condition_event.processed) and ii < 100:
         print(sub_process)
         # for sub_process_ in (proc for proc in [sub_process]):
         print("conditional ")
