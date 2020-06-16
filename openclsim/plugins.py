@@ -237,7 +237,7 @@ class HasWeatherPluginMoveActivity:
             and metocean_df is not None
             and isinstance(self, model.PluginActivity)
         ):
-            print("regrister weather plugin")
+            print("register weather plugin")
             self.timestep = datetime.timedelta(minutes=timestep)
 
             data = {}
@@ -402,7 +402,7 @@ class HasWeatherPluginShiftAmountActivity:
             and metocean_df is not None
             and isinstance(self, model.PluginActivity)
         ):
-            print("regrister weather plugin")
+            print("register weather plugin")
             self.timestep = datetime.timedelta(minutes=timestep)
 
             data = {}

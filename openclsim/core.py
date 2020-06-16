@@ -2282,9 +2282,9 @@ class Processor(SimpyObject):
         #     subcycle_frequency = self.unloading_subcycle_frequency
         #     message = "unloading"
 
-        message = f"transfer {id_}"
+        message = f"install {id_}"
         if hasattr(destination, "name"):
-            message = message + f" to {destination.name}"
+            message = message + f" at {destination.name}"
         print(message)
         # Log the process for all parts
         for location in [origin, destination]:
