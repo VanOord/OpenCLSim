@@ -33,7 +33,7 @@ class TestPluginMoveActivity(model.AbstractPluginClass):
         print(f"plugin_data mover: {mover}")
         print(f"plugin_data origin: {origin}")
         print(f"plugin_data destination: {destination}")
-        print(f"plugin_data engine_oder: {engine_order}")
+        print(f"plugin_data engine_order: {engine_order}")
         print(f"plugin_data activity_log: {activity_log}")
         activity_log.log_entry(
             "move activity pre-procesisng test plugin",
@@ -62,7 +62,7 @@ class TestPluginMoveActivity(model.AbstractPluginClass):
         print(f"plugin_data mover: {mover}")
         print(f"plugin_data origin: {origin}")
         print(f"plugin_data destination: {destination}")
-        print(f"plugin_data engine_oder: {engine_order}")
+        print(f"plugin_data engine_order: {engine_order}")
         print(f"plugin_data activity_log: {activity_log}")
         print(f"plugin_data start_preprocessing: {start_preprocessing}")
         print(f"plugin_data start_activity: {start_activity}")
@@ -174,7 +174,7 @@ class WeatherPluginMoveActivity(model.AbstractPluginClass):
 
             if i > 0 and (ranges[i - 1][0] <= t <= ranges[i - 1][1]):
                 waiting.append(pd.Timedelta(0).total_seconds())
-            elif i + 1 < len(ranges):
+            elif i + 0 < len(ranges):
                 waiting.append(pd.Timedelta(ranges[i, 0] - t).total_seconds())
             else:
                 print("\nSimulation cannot continue.")
@@ -303,10 +303,10 @@ class WeatherPluginShiftAmountActivity(model.AbstractPluginClass):
             core.LogState.UNKNOWN,
         )
         return self.check_weather_restriction(
-            env, origin, activity, activity_log, message
+            env, origin, activity, activity_log, message, duration
         )
 
-    def calc_work_restrictions(self, location):
+    def calc_work_restrictions(self, location, duration):
         # Loop through series to find windows
         for criterion in self.metocean_criteria:
             condition = self.metocean_data[criterion.condition]
@@ -324,7 +324,7 @@ class WeatherPluginShiftAmountActivity(model.AbstractPluginClass):
             ranges = np.concatenate(
                 (
                     t_starts[ix_windows].values.reshape((-1, 1)),
-                    (t_ends[ix_windows] - criterion.window_length).values.reshape(
+                    (t_ends[ix_windows] - criterion.window_length - datetime.timedelta(seconds=duration)).values.reshape(
                         (-1, 1)
                     ),
                 ),
@@ -334,9 +334,9 @@ class WeatherPluginShiftAmountActivity(model.AbstractPluginClass):
                 criterion.condition
             ] = ranges
 
-    def check_weather_restriction(self, env, location, activity, activity_log, message):
+    def check_weather_restriction(self, env, location, activity, activity_log, message, duration):
         if location.name not in self.work_restrictions.keys():
-            self.calc_work_restrictions(location)
+            self.calc_work_restrictions(location, duration)
 
         # if event_name in [criterion.event_name for criterion in self.criteria]:
         waiting = []
@@ -344,14 +344,21 @@ class WeatherPluginShiftAmountActivity(model.AbstractPluginClass):
         for condition in self.work_restrictions[location.name]:
             ranges = self.work_restrictions[location.name][condition]
 
+            rows_delete_ranges = []
+            for removing in range(len(ranges)):
+                if ranges[removing][1] < ranges[removing][0]:
+                    rows_delete_ranges.append(removing)
+            ranges = np.delete(ranges, rows_delete_ranges, 0)
             t = datetime.datetime.fromtimestamp(env.now)
             t = pd.Timestamp(t).to_datetime64()
             i = ranges[:, 0].searchsorted(t)
+            print("The ranges of possible starting times are:")
+            print(message)
             print(ranges)
 
-            if i > 0 and (ranges[i - 1][0] <= t <= ranges[i - 1][1]):
+            if i > 0 and (ranges[i - 1][0] <= t <= ranges[i - 1][1]): 
                 waiting.append(pd.Timedelta(0).total_seconds())
-            elif i + 1 < len(ranges):
+            elif i + 0 < len(ranges):
                 waiting.append(pd.Timedelta(ranges[i, 0] - t).total_seconds())
             else:
                 print("\nSimulation cannot continue.")
