@@ -15,7 +15,7 @@ Documentation is found [here](https://openclsim.readthedocs.io).
 
 To install OpenCLSim, run this command in your terminal:
 
-``` bash
+```bash
 pip install openclsim
 ```
 
