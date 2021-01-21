@@ -20,10 +20,6 @@ class EventsContainer(simpy.FilterStore):
         self._get_available_events = {}
         self._put_available_events = {}
 
-    def initialize(self, init=0, capacity=0):
-        """Initialize method is a convenience method for backwards compatibility reasons."""
-        self.put(init, capacity)
-
     def initialize_container(self, initials):
         """Initialize method used for MultiContainers."""
         for item in initials:
@@ -86,16 +82,6 @@ class EventsContainer(simpy.FilterStore):
             return self.get_available(self.get_capacity(id_), id_)
         else:
             return self._env.event()
-
-    @property
-    def empty_event(self):
-        """Properties that are kept for backwards compatibility. mThey are NOT applicable for MultiContainers."""
-        return self.put_available(self.get_capacity())
-
-    @property
-    def full_event(self):
-        """Properties that are kept for backwards compatibility. mThey are NOT applicable for MultiContainers."""
-        return self.get_available(self.get_capacity())
 
     def put(self, amount, capacity=0, id_="default"):
         current_amount = 0
