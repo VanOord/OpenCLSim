@@ -83,7 +83,7 @@ class EventsContainer(simpy.FilterStore):
             return self._env.event()
 
     def put(self, amount, id_="default"):
-        # assert self.put_available(amount=amount, id_="default").triggered
+        assert self.put_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] + amount
@@ -105,7 +105,7 @@ class EventsContainer(simpy.FilterStore):
                     return
 
     def get(self, amount, id_="default"):
-        # assert self.get_available(amount=amount, id_="default").triggered
+        assert self.get_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] - amount
