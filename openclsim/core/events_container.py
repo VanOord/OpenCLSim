@@ -34,7 +34,6 @@ class EventsContainer(simpy.FilterStore):
         if id_ in self._get_available_events:
             if amount in self._get_available_events[id_]:
                 return self._get_available_events[id_][amount]
-        # else case: id_ is not in self._get_available_events
         new_event = self._env.event()
         self._get_available_events[id_] = {}
         self._get_available_events[id_][amount] = new_event
@@ -87,17 +86,17 @@ class EventsContainer(simpy.FilterStore):
         current_amount = 0
         if len(self.items) > 0:
             status = super().get(lambda status: status["id"] == id_)
-            # if status.ok:
-            if status.triggered:
-                status = status.value
-                if "capacity" in status:
-                    capacity = status["capacity"]
-                if "level" in status:
-                    current_amount = status["level"]
-            else:
-                raise Exception(
-                    f"Failed to derive the previous version of container {id_}"
-                )
+
+            assert (
+                status.triggered
+            ), f"Failed to derive the previous version of container {id_}"
+
+            status = status.value
+            if "capacity" in status:
+                capacity = status["capacity"]
+            if "level" in status:
+                current_amount = status["level"]
+
         # this is a fall back in case the container is used with default
         put_event = super().put(
             {"id": id_, "level": current_amount + amount, "capacity": capacity}
@@ -135,11 +134,6 @@ class EventsContainer(simpy.FilterStore):
                 id_ = event.item["id"]
         if id_ in self._put_available_events:
             for amount in sorted(self._put_available_events[id_]):
-                # if isinstance(self, ReservationContainer):
-                #    if self.get_capacity(id_) - self.get_expected_level(id_) >= amount:
-                #        self._put_available_events[amount].succeed()
-                #        del self._put_available_events[amount]
-                # el
                 if self.get_capacity(id_) - self.get_level(id_) >= amount:
                     if id_ in self._put_available_events:
                         self._put_available_events[id_][amount].succeed()
