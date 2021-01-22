@@ -55,7 +55,33 @@ class Processor(SimpyObject):
                 activity_state=LogState.START,
             )
 
-        duration, amount = shiftamount_fcn(origin, destination)
+        succeeded = False
+        nr_tries = 0
+        while not succeeded and nr_tries < 200:
+            nr_tries += 1
+            try:
+                duration, amount = shiftamount_fcn(origin, destination)
+                assert amount > 0, "Nothing is transfered"
+
+                yield self.env.all_of(
+                    [
+                        origin.container.get_available(amount=amount, id_=id_),
+                        destination.container.put_available(amount=amount, id_=id_),
+                    ]
+                )
+
+                assert origin.container.get_available(
+                    amount=amount, id_=id_
+                ).triggered, "Origin is empty"
+                assert destination.container.put_available(
+                    amount=amount, id_=id_
+                ).triggered, "destination is full"
+
+                succeeded = True
+            except Exception as e:
+                print(e)
+                logger.info(e)
+                pass
 
         yield from self.get_from_origin(origin, amount, id_)
         yield self.env.timeout(duration)
@@ -118,26 +144,6 @@ class Processor(SimpyObject):
                     "ref": "waiting destination content",
                 },
             )
-
-    def determine_processor_amount(
-        self,
-        origin,
-        destination,
-        amount=None,
-        id_="default",
-    ):
-        """Determine the maximum amount that can be carried."""
-        dest_cont = destination.container
-        destination_max_amount = dest_cont.get_capacity(id_) - dest_cont.get_level(id_)
-
-        org_cont = origin.container
-        origin_max_amount = org_cont.get_level(id_)
-
-        new_amount = min(origin_max_amount, destination_max_amount)
-        if amount is not None:
-            new_amount = min(amount, new_amount)
-
-        return new_amount
 
 
 class LoadingFunction:

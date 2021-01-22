@@ -116,7 +116,6 @@ class ShiftAmountActivity(GenericActivity):
         start_shift = env.now
         yield from self._shift_amount(
             env,
-            self.amount,
             activity_id=activity_log.id,
         )
 
@@ -138,13 +137,12 @@ class ShiftAmountActivity(GenericActivity):
     def _shift_amount(
         self,
         env,
-        amount,
         activity_id,
     ):
         self.processor.activity_id = activity_id
         self.origin.activity_id = activity_id
 
-        shiftamount_fcn = self._get_shiftamount_fcn(amount)
+        shiftamount_fcn = self._get_shiftamount_fcn()
 
         yield from self.processor.process(
             origin=self.origin,
@@ -153,7 +151,36 @@ class ShiftAmountActivity(GenericActivity):
             shiftamount_fcn=shiftamount_fcn,
         )
 
-    def _get_shiftamount_fcn(self, amount):
+    def determine_processor_amount(
+        self,
+        origin,
+        destination,
+        amount=None,
+        id_="default",
+    ):
+        """Determine the maximum amount that can be carried."""
+        dest_cont = destination.container
+        destination_max_amount = dest_cont.get_capacity(id_) - dest_cont.get_level(id_)
+
+        org_cont = origin.container
+        origin_max_amount = org_cont.get_level(id_)
+
+        new_amount = min(origin_max_amount, destination_max_amount)
+        if amount is not None:
+            new_amount = min(amount, new_amount)
+
+        return new_amount
+
+    def _get_shiftamount_fcn(
+        self,
+    ):
+        amount = self.determine_processor_amount(
+            origin=self.origin,
+            destination=self.destination,
+            amount=self.amount,
+            id_=self.id_,
+        )
+
         if self.duration is not None:
             return lambda origin, destination: (self.duration, amount)
         elif self.phase == "loading":
