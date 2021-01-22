@@ -69,7 +69,7 @@ class EventsContainer(simpy.FilterStore):
     def get_empty_event(self, start_event=False, id_="default"):
         if not start_event:
             return self.put_available(self.get_capacity(id_), id_)
-        elif start_event.processed:
+        elif start_event.triggered:
             return self.put_available(self.get_capacity(id_), id_)
         else:
             return self._env.event()
@@ -77,7 +77,7 @@ class EventsContainer(simpy.FilterStore):
     def get_full_event(self, start_event=False, id_="default"):
         if not start_event:
             return self.get_available(self.get_capacity(id_), id_)
-        elif start_event.processed:
+        elif start_event.triggered:
             return self.get_available(self.get_capacity(id_), id_)
         else:
             return self._env.event()
