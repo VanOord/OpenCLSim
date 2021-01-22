@@ -82,25 +82,12 @@ class EventsContainer(simpy.FilterStore):
         else:
             return self._env.event()
 
-    def put(self, amount, capacity=0, id_="default"):
-        current_amount = 0
-        if len(self.items) > 0:
-            status = super().get(lambda status: status["id"] == id_)
+    def put(self, amount, id_="default"):
+        # assert self.put_available(amount=amount, id_="default").triggered
 
-            assert (
-                status.triggered
-            ), f"Failed to derive the previous version of container {id_}"
-
-            status = status.value
-            if "capacity" in status:
-                capacity = status["capacity"]
-            if "level" in status:
-                current_amount = status["level"]
-
-        # this is a fall back in case the container is used with default
-        put_event = super().put(
-            {"id": id_, "level": current_amount + amount, "capacity": capacity}
-        )
+        store_status = super().get(lambda state: state["id"] == id_).value
+        store_status["level"] = store_status["level"] + amount
+        put_event = super().put(store_status)
         put_event.callbacks.append(self.put_callback)
         return put_event
 
@@ -118,6 +105,8 @@ class EventsContainer(simpy.FilterStore):
                     return
 
     def get(self, amount, id_="default"):
+        # assert self.get_available(amount=amount, id_="default").triggered
+
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] - amount
         get_event = super().put(store_status)
@@ -125,10 +114,6 @@ class EventsContainer(simpy.FilterStore):
         return get_event
 
     def get_callback(self, event, id_="default"):
-        # it is confusing that this is checking for storeput while doing a get
-        # the reason is that subtracting from a container requires to get the complete
-        # content of a container and then add the remaining content of the container
-        # which creates a storeput
         if isinstance(event, simpy.resources.store.StorePut):
             if "id" in event.item:
                 id_ = event.item["id"]
