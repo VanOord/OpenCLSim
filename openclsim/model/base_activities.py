@@ -50,7 +50,7 @@ class RegisterSubProcesses:
                 sub_process.start_event_parent = {
                     "type": "activity",
                     "state": "done",
-                    "id": self.sub_processes[i - 1].id,
+                    "name": self.sub_processes[i - 1].name,
                 }
 
         for sub_process in self.sub_processes:

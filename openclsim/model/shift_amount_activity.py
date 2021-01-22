@@ -95,22 +95,9 @@ class ShiftAmountActivity(GenericActivity):
 
     def main_process_function(self, activity_log, env):
         """Origin and Destination are of type HasContainer."""
-        assert self.processor.is_at(self.origin)
-        assert self.destination.is_at(self.origin)
 
-        amount = self.processor.determine_processor_amount(
-            self.origin, self.destination, self.amount, self.id_
-        )
-
-        yield from self._request_resource(
-            self.requested_resources, self.destination.resource
-        )
-
-        yield from self._request_resource_if_available(
-            env=env,
-            amount=amount,
-            activity_id=activity_log.id,
-        )
+        for obj in set([self.destination, self.origin, self.processor]):
+            yield from self._request_resource(self.requested_resources, obj.resource)
 
         start_time = env.now
         args_data = {
@@ -129,7 +116,7 @@ class ShiftAmountActivity(GenericActivity):
         start_shift = env.now
         yield from self._shift_amount(
             env,
-            amount,
+            self.amount,
             activity_id=activity_log.id,
         )
 
@@ -142,18 +129,11 @@ class ShiftAmountActivity(GenericActivity):
         args_data["start_activity"] = start_shift
         yield from self.post_process(**args_data)
 
-        # release the unloader, self.destination and mover requests
-        self._release_resource(
-            self.requested_resources, self.destination.resource, self.keep_resources
-        )
-        if self.origin.resource in self.requested_resources:
-            self._release_resource(
-                self.requested_resources, self.origin.resource, self.keep_resources
-            )
-        if self.processor.resource in self.requested_resources:
-            self._release_resource(
-                self.requested_resources, self.processor.resource, self.keep_resources
-            )
+        for obj in set([self.destination, self.origin, self.processor]):
+            if obj.resource in self.requested_resources:
+                self._release_resource(
+                    self.requested_resources, obj.resource, self.keep_resources
+                )
 
     def _shift_amount(
         self,

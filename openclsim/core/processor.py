@@ -57,11 +57,9 @@ class Processor(SimpyObject):
 
         duration, amount = shiftamount_fcn(origin, destination)
 
-        # Get the amount from the origin
-        yield from self.check_possible_shift(origin, destination, amount, "get", id_)
+        yield from self.get_from_origin(origin, amount, id_)
         yield self.env.timeout(duration)
-        # Put the amount in the destination
-        yield from self.check_possible_shift(origin, destination, amount, "put", id_)
+        yield from self.put_in_destination(destination, amount, id_)
 
         # Log the process for all parts
         for location in set([self, origin, destination]):
@@ -71,72 +69,55 @@ class Processor(SimpyObject):
                 activity_state=LogState.STOP,
             )
 
-    def check_possible_shift(
-        self, origin, destination, amount, activity, id_="default"
-    ):
-        """
-        Check if all the material is available.
+    def get_from_origin(self, origin, amount, id_="default"):
+        start_time = self.env.now
+        yield origin.container.get(amount, id_)
+        end_time = self.env.now
 
-        If the amount is not available in the origin or in the destination
-        yield a put or get. Time will move forward until the amount can be
-        retrieved from the origin or placed into the destination.
-        """
+        if start_time != end_time:
+            self.log_entry(
+                t=start_time,
+                activity_id=self.activity_id,
+                activity_state=LogState.WAIT_START,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting origin content",
+                },
+            )
+            self.log_entry(
+                t=end_time,
+                activity_id=self.activity_id,
+                activity_state=LogState.WAIT_STOP,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting origin content",
+                },
+            )
 
-        if activity == "get":
+    def put_in_destination(self, destination, amount, id_="default"):
+        start_time = self.env.now
+        yield destination.container.put(amount, id_=id_)
+        end_time = self.env.now
 
-            # Shift amounts in containers
-            start_time = self.env.now
-            yield origin.container.get(amount, id_)
-            end_time = self.env.now
-
-            # If the amount is not available in the origin, log waiting
-            if start_time != end_time:
-                self.log_entry(
-                    t=start_time,
-                    activity_id=self.activity_id,
-                    activity_state=LogState.WAIT_START,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": "waiting origin content",
-                    },
-                )
-                self.log_entry(
-                    t=end_time,
-                    activity_id=self.activity_id,
-                    activity_state=LogState.WAIT_STOP,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": "waiting origin content",
-                    },
-                )
-
-        elif activity == "put":
-
-            # Shift amounts in containers
-            start_time = self.env.now
-            yield destination.container.put(amount, id_=id_)
-            end_time = self.env.now
-
-            # If the amount is cannot be put in the destination, log waiting
-            if start_time != end_time:
-                self.log_entry(
-                    t=start_time,
-                    activity_id=self.activity_id,
-                    activity_state=LogState.WAIT_START,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": "waiting destination content",
-                    },
-                )
-                self.log_entry(
-                    t=end_time,
-                    activity_id=self.activity_id,
-                    activity_state=LogState.WAIT_STOP,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": "waiting destination content",
-                    },
-                )
+        if start_time != end_time:
+            self.log_entry(
+                t=start_time,
+                activity_id=self.activity_id,
+                activity_state=LogState.WAIT_START,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting destination content",
+                },
+            )
+            self.log_entry(
+                t=end_time,
+                activity_id=self.activity_id,
+                activity_state=LogState.WAIT_STOP,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting destination content",
+                },
+            )
 
     def determine_processor_amount(
         self,
@@ -148,17 +129,9 @@ class Processor(SimpyObject):
         """Determine the maximum amount that can be carried."""
         dest_cont = destination.container
         destination_max_amount = dest_cont.get_capacity(id_) - dest_cont.get_level(id_)
-        if destination_max_amount <= 0:
-            raise ValueError(
-                f"Attempting to shift content to a full destination (name: {destination.name}, container_id: {id_}, capacity: {dest_cont.get_capacity(id_)} level: {dest_cont.get_level(id_)})."
-            )
 
         org_cont = origin.container
         origin_max_amount = org_cont.get_level(id_)
-        if origin_max_amount <= 0:
-            raise ValueError(
-                f"Attempting to shift content from an empty origin (name: {origin.name}, container_id: {id_}, capacity: {org_cont.get_capacity(id_)} level: {org_cont.get_level(id_)})."
-            )
 
         new_amount = min(origin_max_amount, destination_max_amount)
         if amount is not None:
