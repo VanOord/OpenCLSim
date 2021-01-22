@@ -57,8 +57,9 @@ class Processor(SimpyObject):
 
         succeeded = False
         nr_tries = 0
-        while not succeeded and nr_tries < 200:
+        while not succeeded and nr_tries < 100:
             nr_tries += 1
+
             try:
                 duration, amount = shiftamount_fcn(origin, destination)
                 assert amount > 0, "Nothing is transfered"
@@ -78,10 +79,15 @@ class Processor(SimpyObject):
                 ).triggered, "destination is full"
 
                 succeeded = True
+
             except Exception as e:
-                print(e)
                 logger.info(e)
-                pass
+                yield self.env.timeout(0)
+
+        if nr_tries >= 100:
+            raise ValueError(
+                f"A valid container reservation could not be made. Tried {nr_tries} times"
+            )
 
         yield from self.get_from_origin(origin, amount, id_)
         yield self.env.timeout(duration)
