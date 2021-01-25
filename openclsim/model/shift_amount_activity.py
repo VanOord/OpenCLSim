@@ -61,112 +61,8 @@ class ShiftAmountActivity(GenericActivity):
 
     def _request_resource_if_available(
         self,
-        env,
-        amount,
-        activity_id,
     ):
-        all_available = False
-        while not all_available and amount > 0:
-            # yield until enough content and space available in origin and destination
-            yield env.all_of(
-                events=[self.origin.container.get_available(amount, self.id_)]
-            )
-
-            yield from self._request_resource(
-                self.requested_resources, self.processor.resource
-            )
-            if self.origin.container.get_level(self.id_) < amount:
-                # someone removed / added content while we were requesting the processor, so abort and wait for available
-                # space/content again
-                self._release_resource(
-                    self.requested_resources,
-                    self.processor.resource,
-                )
-                continue
-
-            yield from self._request_resource(
-                self.requested_resources, self.origin.resource
-            )
-            if self.origin.container.get_level(self.id_) < amount:
-                self._release_resource(
-                    self.requested_resources,
-                    self.processor.resource,
-                )
-                self._release_resource(
-                    self.requested_resources,
-                    self.origin.resource,
-                )
-                continue
-            all_available = True
-
-    def main_process_function(self, activity_log, env):
-        """Origin and Destination are of type HasContainer."""
-
-        for obj in set([self.destination, self.origin, self.processor]):
-            yield from self._request_resource(self.requested_resources, obj.resource)
-
-        start_time = env.now
-        args_data = {
-            "env": env,
-            "activity_log": activity_log,
-            "activity": self,
-        }
-        yield from self.pre_process(args_data)
-
-        activity_log.log_entry(
-            t=env.now,
-            activity_id=activity_log.id,
-            activity_state=core.LogState.START,
-        )
-
-        start_shift = env.now
-        yield from self._shift_amount(
-            env,
-            activity_id=activity_log.id,
-        )
-
-        activity_log.log_entry(
-            t=env.now,
-            activity_id=activity_log.id,
-            activity_state=core.LogState.STOP,
-        )
-        args_data["start_preprocessing"] = start_time
-        args_data["start_activity"] = start_shift
-        yield from self.post_process(**args_data)
-
-        for obj in set([self.destination, self.origin, self.processor]):
-            if obj.resource in self.requested_resources:
-                self._release_resource(
-                    self.requested_resources, obj.resource, self.keep_resources
-                )
-
-    def _shift_amount(
-        self,
-        env,
-        activity_id,
-    ):
-        self.processor.activity_id = activity_id
-        self.origin.activity_id = activity_id
-
         shiftamount_fcn = self._get_shiftamount_fcn()
-
-        assert isinstance(self.origin, HasContainer)
-        assert isinstance(self.destination, HasContainer)
-        assert isinstance(self.origin, HasResource)
-        assert isinstance(self.destination, HasResource)
-        assert isinstance(self.processor, Log)
-        assert isinstance(self.origin, Log)
-        assert isinstance(self.destination, Log)
-        assert self.processor.is_at(self.origin)
-        assert self.destination.is_at(self.origin)
-
-        # Log the process for all parts
-        for location in set([self.processor, self.origin, self.destination]):
-            location.log_entry(
-                t=location.env.now,
-                activity_id=activity_id,
-                activity_state=LogState.START,
-            )
 
         succeeded = False
         nr_tries = 0
@@ -174,6 +70,8 @@ class ShiftAmountActivity(GenericActivity):
             nr_tries += 1
 
             try:
+                self.reserved_amount = 0
+                self.reserved_duration = 0
                 duration, amount = shiftamount_fcn(self.origin, self.destination)
                 assert amount > 0, "Nothing is transfered"
 
@@ -195,6 +93,12 @@ class ShiftAmountActivity(GenericActivity):
                     amount=amount, id_=self.id_
                 ).triggered, "destination is full"
 
+                for obj in set([self.destination, self.origin, self.processor]):
+                    yield from self._request_resource(
+                        self.requested_resources, obj.resource
+                    )
+                self.reserved_amount = amount
+                self.reserved_duration = duration
                 succeeded = True
 
             except Exception as e:
@@ -206,17 +110,77 @@ class ShiftAmountActivity(GenericActivity):
                 f"A valid container reservation could not be made. Tried {nr_tries} times"
             )
 
-        yield from self.get_from_origin(self.origin, amount, self.id_)
-        yield self.env.timeout(duration)
-        yield from self.put_in_destination(self.destination, amount, self.id_)
+        return amount
+
+    def main_process_function(self, activity_log, env):
+        """Origin and Destination are of type HasContainer."""
+        assert isinstance(self.origin, HasContainer)
+        assert isinstance(self.destination, HasContainer)
+        assert isinstance(self.origin, HasResource)
+        assert isinstance(self.destination, HasResource)
+        assert isinstance(self.processor, Log)
+        assert isinstance(self.origin, Log)
+        assert isinstance(self.destination, Log)
+        assert self.processor.is_at(self.origin)
+        assert self.destination.is_at(self.origin)
+
+        yield from self._request_resource_if_available()
+
+        start_time = env.now
+        args_data = {
+            "env": env,
+            "activity_log": activity_log,
+            "activity": self,
+        }
+        yield from self.pre_process(args_data)
+
+        activity_log.log_entry(
+            t=env.now,
+            activity_id=activity_log.id,
+            activity_state=core.LogState.START,
+        )
+
+        start_shift = env.now
+
+        self.processor.activity_id = activity_log.id
+        self.origin.activity_id = activity_log.id
 
         # Log the process for all parts
         for location in set([self.processor, self.origin, self.destination]):
             location.log_entry(
                 t=location.env.now,
+                activity_id=activity_log.id,
+                activity_state=LogState.START,
+            )
+
+        yield from self.get_from_origin(self.origin, self.reserved_amount, self.id_)
+        yield self.env.timeout(self.reserved_duration)
+        yield from self.put_in_destination(
+            self.destination, self.reserved_amount, self.id_
+        )
+
+        # Log the process for all parts
+        for location in set([self.processor, self.origin, self.destination]):
+            location.log_entry(
+                t=self.env.now,
                 activity_id=self.id,
                 activity_state=LogState.STOP,
             )
+
+        activity_log.log_entry(
+            t=env.now,
+            activity_id=activity_log.id,
+            activity_state=core.LogState.STOP,
+        )
+        args_data["start_preprocessing"] = start_time
+        args_data["start_activity"] = start_shift
+        yield from self.post_process(**args_data)
+
+        for obj in set([self.destination, self.origin, self.processor]):
+            if obj.resource in self.requested_resources:
+                self._release_resource(
+                    self.requested_resources, obj.resource, self.keep_resources
+                )
 
     def determine_processor_amount(
         self,
