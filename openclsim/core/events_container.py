@@ -34,9 +34,11 @@ class EventsContainer(simpy.FilterStore):
     def get_available(self, amount, id_="default"):
         if self.get_level(id_) >= amount:
             return self._env.event().succeed()
-        if id_ in self._get_available_events:
-            if amount in self._get_available_events[id_]:
-                return self._get_available_events[id_][amount]
+
+        available_event = self._get_available_events.get(id_, {}).get(amount)
+        if available_event:
+            return available_event
+
         new_event = self._env.event()
         self._get_available_events[id_] = {}
         self._get_available_events[id_][amount] = new_event
@@ -61,9 +63,11 @@ class EventsContainer(simpy.FilterStore):
     def put_available(self, amount, id_="default"):
         if self.get_capacity(id_) - self.get_level(id_) >= amount:
             return self._env.event().succeed()
-        if id_ in self._put_available_events:
-            if amount in self._put_available_events:
-                return self._put_available_events[amount]
+
+        available_event = self._put_available_events.get(id_, {}).get(amount)
+        if available_event:
+            return available_event
+
         new_event = self._env.event()
         self._put_available_events[id_] = {}
         self._put_available_events[id_][amount] = new_event
@@ -133,23 +137,24 @@ class EventsContainer(simpy.FilterStore):
 
     def get_reservation(self, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
-        store_status["reservation"] = store_status["reservation"] - amount
 
-        assert store_status["level"] + store_status["reservation"] >= 0
-
-        return super().put(store_status)
+        if store_status["level"] + store_status["reservation"] - amount >= 0:
+            store_status["reservation"] = store_status["reservation"] - amount
+            return super().put(store_status), True
+        else:
+            return super().put(store_status), False
 
     def put_reservation(self, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
 
-        store_status["reservation"] = store_status["reservation"] + amount
-
-        assert (
+        if (
             store_status["capacity"]
-            >= store_status["level"] + store_status["reservation"]
-        )
-
-        return super().put(store_status)
+            >= store_status["level"] + store_status["reservation"] + amount
+        ):
+            store_status["reservation"] = store_status["reservation"] + amount
+            return super().put(store_status), True
+        else:
+            return super().put(store_status), False
 
     @property
     def container_list(self):

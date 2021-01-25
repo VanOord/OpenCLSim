@@ -33,7 +33,8 @@ class SequentialActivity(GenericActivity, RegisterSubProcesses):
         try:
             yield from self.reserve_sub_processes()
             passed = True
-        except AssertionError:
+        except Exception as e:
+            yield self.env.timeout(1)
             pass
 
         if passed:
@@ -98,20 +99,20 @@ class SequentialActivity(GenericActivity, RegisterSubProcesses):
             yield from self.post_process(**args_data)
 
     def reserve_sub_processes(self):
-        # print(self.name)
         reservations = []
         for sub_process in self.sub_processes:
             if isinstance(sub_process, ShiftAmountActivity):
-                # print(sub_process.name)
-                # print(sub_process.origin.name)
-                get_reservation = sub_process.origin.container.get_reservation(
+                get_reservation, passed = sub_process.origin.container.get_reservation(
                     sub_process.amount, sub_process.id_
                 )
-                # print(sub_process.destination.name)
-                put_reservation = sub_process.destination.container.put_reservation(
+                assert passed, "Not a valid reservation"
+                (
+                    put_reservation,
+                    passed,
+                ) = sub_process.destination.container.put_reservation(
                     sub_process.amount, sub_process.id_
                 )
+                assert passed, "Not a valid reservation"
                 reservations.extend([get_reservation, put_reservation])
-                # print("")
 
         yield from reservations
