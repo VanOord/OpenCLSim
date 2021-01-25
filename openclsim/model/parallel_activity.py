@@ -2,9 +2,10 @@
 import openclsim.core as core
 
 from .base_activities import GenericActivity, RegisterSubProcesses
+from .reservations import SubProcessesReservation
 
 
-class ParallelActivity(GenericActivity, RegisterSubProcesses):
+class ParallelActivity(GenericActivity, RegisterSubProcesses, SubProcessesReservation):
     """
     ParallelActivity Class forms a specific class.
 
@@ -28,6 +29,12 @@ class ParallelActivity(GenericActivity, RegisterSubProcesses):
         self.register_subprocesses()
 
     def main_process_function(self, activity_log, env):
+        if self.reserve_activities:
+            try:
+                yield from self.reserve_sub_processes()
+            except AssertionError:
+                return
+
         start_time = env.now
         args_data = {
             "env": env,

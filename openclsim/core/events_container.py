@@ -40,8 +40,7 @@ class EventsContainer(simpy.FilterStore):
             return available_event
 
         new_event = self._env.event()
-        self._get_available_events[id_] = {}
-        self._get_available_events[id_][amount] = new_event
+        self._get_available_events.setdefault(id_, {})[amount] = new_event
         return new_event
 
     def get_capacity(self, id_="default"):
@@ -69,8 +68,7 @@ class EventsContainer(simpy.FilterStore):
             return available_event
 
         new_event = self._env.event()
-        self._put_available_events[id_] = {}
-        self._put_available_events[id_][amount] = new_event
+        self._put_available_events.setdefault(id_, {})[amount] = new_event
         return new_event
 
     def get_empty_event(self, start_event=False, id_="default"):

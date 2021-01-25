@@ -2,10 +2,12 @@
 import openclsim.core as core
 
 from .base_activities import GenericActivity, RegisterSubProcesses
-from .shift_amount_activity import ShiftAmountActivity
+from .reservations import SubProcessesReservation
 
 
-class SequentialActivity(GenericActivity, RegisterSubProcesses):
+class SequentialActivity(
+    GenericActivity, RegisterSubProcesses, SubProcessesReservation
+):
     """
     SequenceActivity Class forms a specific class.
 
@@ -29,90 +31,68 @@ class SequentialActivity(GenericActivity, RegisterSubProcesses):
         self.register_subprocesses()
 
     def main_process_function(self, activity_log, env):
-        passed = False
-        try:
-            yield from self.reserve_sub_processes()
-            passed = True
-        except Exception as e:
-            yield self.env.timeout(1)
-            pass
+        if self.reserve_activities:
+            try:
+                yield from self.reserve_sub_processes()
+            except AssertionError:
+                return
 
-        if passed:
-            start_time = env.now
-            args_data = {
-                "env": env,
-                "activity_log": activity_log,
-                "activity": self,
-            }
-            yield from self.pre_process(args_data)
+        start_time = env.now
+        args_data = {
+            "env": env,
+            "activity_log": activity_log,
+            "activity": self,
+        }
+        yield from self.pre_process(args_data)
 
-            start_sequence = env.now
+        start_sequence = env.now
 
+        activity_log.log_entry(
+            t=env.now,
+            activity_id=activity_log.id,
+            activity_state=core.LogState.START,
+        )
+
+        self.start_sequence.succeed()
+
+        for sub_process in self.sub_processes:
             activity_log.log_entry(
                 t=env.now,
                 activity_id=activity_log.id,
                 activity_state=core.LogState.START,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": sub_process.id,
+                },
             )
 
-            self.start_sequence.succeed()
-
-            for sub_process in self.sub_processes:
-                activity_log.log_entry(
-                    t=env.now,
-                    activity_id=activity_log.id,
-                    activity_state=core.LogState.START,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": sub_process.id,
-                    },
-                )
-
-                stop_event = self.parse_expression(
-                    [
-                        {
-                            "type": "activity",
-                            "state": "done",
-                            "name": sub_process.name,
-                        }
-                    ]
-                )
-                yield stop_event
-
-                activity_log.log_entry(
-                    t=env.now,
-                    activity_id=activity_log.id,
-                    activity_state=core.LogState.STOP,
-                    activity_label={
-                        "type": "subprocess",
-                        "ref": sub_process.id,
-                    },
-                )
+            stop_event = self.parse_expression(
+                [
+                    {
+                        "type": "activity",
+                        "state": "done",
+                        "name": sub_process.name,
+                    }
+                ]
+            )
+            yield stop_event
 
             activity_log.log_entry(
                 t=env.now,
                 activity_id=activity_log.id,
                 activity_state=core.LogState.STOP,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": sub_process.id,
+                },
             )
 
-            args_data["start_preprocessing"] = start_time
-            args_data["start_activity"] = start_sequence
-            yield from self.post_process(**args_data)
+        activity_log.log_entry(
+            t=env.now,
+            activity_id=activity_log.id,
+            activity_state=core.LogState.STOP,
+        )
 
-    def reserve_sub_processes(self):
-        reservations = []
-        for sub_process in self.sub_processes:
-            if isinstance(sub_process, ShiftAmountActivity):
-                get_reservation, passed = sub_process.origin.container.get_reservation(
-                    sub_process.amount, sub_process.id_
-                )
-                assert passed, "Not a valid reservation"
-                (
-                    put_reservation,
-                    passed,
-                ) = sub_process.destination.container.put_reservation(
-                    sub_process.amount, sub_process.id_
-                )
-                assert passed, "Not a valid reservation"
-                reservations.extend([get_reservation, put_reservation])
-
-        yield from reservations
+        args_data["start_preprocessing"] = start_time
+        args_data["start_activity"] = start_sequence
+        yield from self.post_process(**args_data)
