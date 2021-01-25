@@ -1,15 +1,15 @@
 """Shift amount activity for the simulation."""
 
 
+import logging
 from functools import partial
 
 import openclsim.core as core
-import logging
-from .base_activities import GenericActivity
 
 from ..core.container import HasContainer
 from ..core.log import Log, LogState
 from ..core.resource import HasResource
+from .base_activities import GenericActivity
 
 logger = logging.getLogger(__name__)
 
