@@ -4,8 +4,14 @@
 from functools import partial
 
 import openclsim.core as core
-
+import logging
 from .base_activities import GenericActivity
+
+from ..core.container import HasContainer
+from ..core.log import Log, LogState
+from ..core.resource import HasResource
+
+logger = logging.getLogger(__name__)
 
 
 class ShiftAmountActivity(GenericActivity):
@@ -144,12 +150,73 @@ class ShiftAmountActivity(GenericActivity):
 
         shiftamount_fcn = self._get_shiftamount_fcn()
 
-        yield from self.processor.process(
-            origin=self.origin,
-            destination=self.destination,
-            id_=self.id_,
-            shiftamount_fcn=shiftamount_fcn,
-        )
+        assert isinstance(self.origin, HasContainer)
+        assert isinstance(self.destination, HasContainer)
+        assert isinstance(self.origin, HasResource)
+        assert isinstance(self.destination, HasResource)
+        assert isinstance(self.processor, Log)
+        assert isinstance(self.origin, Log)
+        assert isinstance(self.destination, Log)
+        assert self.processor.is_at(self.origin)
+        assert self.destination.is_at(self.origin)
+
+        # Log the process for all parts
+        for location in set([self.processor, self.origin, self.destination]):
+            location.log_entry(
+                t=location.env.now,
+                activity_id=activity_id,
+                activity_state=LogState.START,
+            )
+
+        succeeded = False
+        nr_tries = 0
+        while not succeeded and nr_tries < 100:
+            nr_tries += 1
+
+            try:
+                duration, amount = shiftamount_fcn(self.origin, self.destination)
+                assert amount > 0, "Nothing is transfered"
+
+                yield self.env.all_of(
+                    [
+                        self.origin.container.get_available(
+                            amount=amount, id_=self.id_
+                        ),
+                        self.destination.container.put_available(
+                            amount=amount, id_=self.id_
+                        ),
+                    ]
+                )
+
+                assert self.origin.container.get_available(
+                    amount=amount, id_=self.id_
+                ).triggered, "Origin is empty"
+                assert self.destination.container.put_available(
+                    amount=amount, id_=self.id_
+                ).triggered, "destination is full"
+
+                succeeded = True
+
+            except Exception as e:
+                logger.info(e)
+                yield self.env.timeout(0)
+
+        if nr_tries >= 100:
+            raise ValueError(
+                f"A valid container reservation could not be made. Tried {nr_tries} times"
+            )
+
+        yield from self.get_from_origin(self.origin, amount, self.id_)
+        yield self.env.timeout(duration)
+        yield from self.put_in_destination(self.destination, amount, self.id_)
+
+        # Log the process for all parts
+        for location in set([self.processor, self.origin, self.destination]):
+            location.log_entry(
+                t=location.env.now,
+                activity_id=self.id,
+                activity_state=LogState.STOP,
+            )
 
     def determine_processor_amount(
         self,
@@ -190,4 +257,54 @@ class ShiftAmountActivity(GenericActivity):
         else:
             raise RuntimeError(
                 "Both the phase (loading / unloading) and the duration of the shiftamount activity are undefined. At least one is required!"
+            )
+
+    def get_from_origin(self, origin, amount, id_="default"):
+        start_time = self.env.now
+        yield origin.container.get(amount, id_)
+        end_time = self.env.now
+
+        if start_time != end_time:
+            self.processor.log_entry(
+                t=start_time,
+                activity_id=self.id,
+                activity_state=LogState.WAIT_START,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting origin content",
+                },
+            )
+            self.processor.log_entry(
+                t=end_time,
+                activity_id=self.id,
+                activity_state=LogState.WAIT_STOP,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting origin content",
+                },
+            )
+
+    def put_in_destination(self, destination, amount, id_="default"):
+        start_time = self.env.now
+        yield destination.container.put(amount, id_=id_)
+        end_time = self.env.now
+
+        if start_time != end_time:
+            self.processor.log_entry(
+                t=start_time,
+                activity_id=self.id,
+                activity_state=LogState.WAIT_START,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting destination content",
+                },
+            )
+            self.processor.log_entry(
+                t=end_time,
+                activity_id=self.id,
+                activity_state=LogState.WAIT_STOP,
+                activity_label={
+                    "type": "subprocess",
+                    "ref": "waiting destination content",
+                },
             )
