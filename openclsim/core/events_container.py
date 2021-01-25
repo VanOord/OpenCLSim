@@ -26,6 +26,9 @@ class EventsContainer(simpy.FilterStore):
             assert "id" in item
             assert "capacity" in item
             assert "level" in item
+
+            item["reservation"] = 0
+
             super().put(item)
 
     def get_available(self, amount, id_="default"):
@@ -87,6 +90,7 @@ class EventsContainer(simpy.FilterStore):
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] + amount
+        store_status["reservation"] = store_status["reservation"] - amount
         put_event = super().put(store_status)
         put_event.callbacks.append(self.put_callback)
         return put_event
@@ -109,6 +113,7 @@ class EventsContainer(simpy.FilterStore):
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] - amount
+        store_status["reservation"] = store_status["reservation"] + amount
         get_event = super().put(store_status)
         get_event.callbacks.append(self.get_callback)
         return get_event
@@ -125,6 +130,26 @@ class EventsContainer(simpy.FilterStore):
                         del self._put_available_events[id_][amount]
                 else:
                     return
+
+    def get_reservation(self, amount, id_="default"):
+        store_status = super().get(lambda state: state["id"] == id_).value
+        store_status["reservation"] = store_status["reservation"] - amount
+
+        assert store_status["level"] + store_status["reservation"] >= 0
+
+        return super().put(store_status)
+
+    def put_reservation(self, amount, id_="default"):
+        store_status = super().get(lambda state: state["id"] == id_).value
+
+        store_status["reservation"] = store_status["reservation"] + amount
+
+        assert (
+            store_status["capacity"]
+            >= store_status["level"] + store_status["reservation"]
+        )
+
+        return super().put(store_status)
 
     @property
     def container_list(self):

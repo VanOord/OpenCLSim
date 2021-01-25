@@ -2,6 +2,7 @@
 import openclsim.core as core
 
 from .base_activities import GenericActivity, RegisterSubProcesses
+from .shift_amount_activity import ShiftAmountActivity
 
 
 class SequentialActivity(GenericActivity, RegisterSubProcesses):
@@ -28,62 +29,89 @@ class SequentialActivity(GenericActivity, RegisterSubProcesses):
         self.register_subprocesses()
 
     def main_process_function(self, activity_log, env):
-        start_time = env.now
-        args_data = {
-            "env": env,
-            "activity_log": activity_log,
-            "activity": self,
-        }
-        yield from self.pre_process(args_data)
+        passed = False
+        try:
+            yield from self.reserve_sub_processes()
+            passed = True
+        except AssertionError:
+            pass
 
-        start_sequence = env.now
+        if passed:
+            start_time = env.now
+            args_data = {
+                "env": env,
+                "activity_log": activity_log,
+                "activity": self,
+            }
+            yield from self.pre_process(args_data)
 
-        activity_log.log_entry(
-            t=env.now,
-            activity_id=activity_log.id,
-            activity_state=core.LogState.START,
-        )
+            start_sequence = env.now
 
-        self.start_sequence.succeed()
-
-        for sub_process in self.sub_processes:
             activity_log.log_entry(
                 t=env.now,
                 activity_id=activity_log.id,
                 activity_state=core.LogState.START,
-                activity_label={
-                    "type": "subprocess",
-                    "ref": sub_process.id,
-                },
             )
 
-            stop_event = self.parse_expression(
-                [
-                    {
-                        "type": "activity",
-                        "state": "done",
-                        "name": sub_process.name,
-                    }
-                ]
-            )
-            yield stop_event
+            self.start_sequence.succeed()
+
+            for sub_process in self.sub_processes:
+                activity_log.log_entry(
+                    t=env.now,
+                    activity_id=activity_log.id,
+                    activity_state=core.LogState.START,
+                    activity_label={
+                        "type": "subprocess",
+                        "ref": sub_process.id,
+                    },
+                )
+
+                stop_event = self.parse_expression(
+                    [
+                        {
+                            "type": "activity",
+                            "state": "done",
+                            "name": sub_process.name,
+                        }
+                    ]
+                )
+                yield stop_event
+
+                activity_log.log_entry(
+                    t=env.now,
+                    activity_id=activity_log.id,
+                    activity_state=core.LogState.STOP,
+                    activity_label={
+                        "type": "subprocess",
+                        "ref": sub_process.id,
+                    },
+                )
 
             activity_log.log_entry(
                 t=env.now,
                 activity_id=activity_log.id,
                 activity_state=core.LogState.STOP,
-                activity_label={
-                    "type": "subprocess",
-                    "ref": sub_process.id,
-                },
             )
 
-        activity_log.log_entry(
-            t=env.now,
-            activity_id=activity_log.id,
-            activity_state=core.LogState.STOP,
-        )
+            args_data["start_preprocessing"] = start_time
+            args_data["start_activity"] = start_sequence
+            yield from self.post_process(**args_data)
 
-        args_data["start_preprocessing"] = start_time
-        args_data["start_activity"] = start_sequence
-        yield from self.post_process(**args_data)
+    def reserve_sub_processes(self):
+        # print(self.name)
+        reservations = []
+        for sub_process in self.sub_processes:
+            if isinstance(sub_process, ShiftAmountActivity):
+                # print(sub_process.name)
+                # print(sub_process.origin.name)
+                get_reservation = sub_process.origin.container.get_reservation(
+                    sub_process.amount, sub_process.id_
+                )
+                # print(sub_process.destination.name)
+                put_reservation = sub_process.destination.container.put_reservation(
+                    sub_process.amount, sub_process.id_
+                )
+                reservations.extend([get_reservation, put_reservation])
+                # print("")
+
+        yield from reservations
