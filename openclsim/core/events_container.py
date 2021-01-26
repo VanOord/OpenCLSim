@@ -140,29 +140,37 @@ class EventsContainer(simpy.FilterStore):
     def get_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
 
-        new_store_status = store_status.copy()
-        new_store_status["reservation"][activity_id] = -amount
+        if activity_id not in store_status["reservation"]:
+            new_level = store_status["level"] + sum(
+                store_status["reservation"].values()
+            )
+            max_reservation = min(amount, new_level)
+            max_reservation = max(max_reservation, 0)
+        else:
+            max_reservation = -store_status["reservation"][activity_id]
 
-        new_level = new_store_status["level"] + sum(
-            new_store_status["reservation"].values()
-        )
-
-        if new_level >= 0:
-            return super().put(new_store_status), True
+        if max_reservation > 0:
+            store_status["reservation"][activity_id] = -max_reservation
+            return super().put(store_status), True
         else:
             return super().put(store_status), False
 
     def put_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
 
-        new_store_status = store_status.copy()
-        new_store_status["reservation"][activity_id] = amount
+        if activity_id not in store_status["reservation"]:
+            new_level = store_status["level"] + sum(
+                store_status["reservation"].values()
+            )
+            max_reservation = store_status["capacity"] - new_level
+            max_reservation = min(amount, max_reservation)
+            max_reservation = max(max_reservation, 0)
+        else:
+            max_reservation = store_status["reservation"][activity_id]
 
-        new_level = new_store_status["level"] + sum(
-            new_store_status["reservation"].values()
-        )
-        if new_store_status["capacity"] >= new_level:
-            return super().put(new_store_status), True
+        if max_reservation > 0:
+            store_status["reservation"][activity_id] = max_reservation
+            return super().put(store_status), True
         else:
             return super().put(store_status), False
 
