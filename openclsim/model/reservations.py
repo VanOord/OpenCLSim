@@ -19,14 +19,14 @@ class SubProcessesReservation:
 
             if isinstance(sub_process, ShiftAmountActivity):
                 get_reservation, passed = sub_process.origin.container.get_reservation(
-                    sub_process.amount, sub_process.id_
+                    sub_process.id, sub_process.amount, sub_process.id_
                 )
                 assert passed, "Not a valid reservation"
                 (
                     put_reservation,
                     passed,
                 ) = sub_process.destination.container.put_reservation(
-                    sub_process.amount, sub_process.id_
+                    sub_process.id, sub_process.amount, sub_process.id_
                 )
                 assert passed, "Not a valid reservation"
                 reservations.extend([get_reservation, put_reservation])

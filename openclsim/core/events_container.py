@@ -27,7 +27,7 @@ class EventsContainer(simpy.FilterStore):
             assert "capacity" in item
             assert "level" in item
 
-            item["reservation"] = 0
+            item["reservation"] = {}
 
             super().put(item)
 
@@ -87,12 +87,14 @@ class EventsContainer(simpy.FilterStore):
         else:
             return self._env.event()
 
-    def put(self, amount, id_="default"):
+    def put(self, activity_id, amount, id_="default"):
         assert self.put_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] + amount
-        store_status["reservation"] = store_status["reservation"] - amount
+        if activity_id in store_status["reservation"]:
+            del store_status["reservation"][activity_id]
+
         put_event = super().put(store_status)
         put_event.callbacks.append(self.put_callback)
         return put_event
@@ -110,12 +112,14 @@ class EventsContainer(simpy.FilterStore):
                 else:
                     return
 
-    def get(self, amount, id_="default"):
+    def get(self, activity_id, amount, id_="default"):
         assert self.get_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] - amount
-        store_status["reservation"] = store_status["reservation"] + amount
+        if activity_id in store_status["reservation"]:
+            del store_status["reservation"][activity_id]
+
         get_event = super().put(store_status)
         get_event.callbacks.append(self.get_callback)
         return get_event
@@ -133,23 +137,26 @@ class EventsContainer(simpy.FilterStore):
                 else:
                     return
 
-    def get_reservation(self, amount, id_="default"):
+    def get_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
 
-        if store_status["level"] + store_status["reservation"] - amount >= 0:
-            store_status["reservation"] = store_status["reservation"] - amount
+        new_level = (
+            store_status["level"] + sum(store_status["reservation"].values()) - amount
+        )
+
+        if new_level >= 0:
+            store_status["reservation"][activity_id] = -amount
             return super().put(store_status), True
         else:
             return super().put(store_status), False
 
-    def put_reservation(self, amount, id_="default"):
+    def put_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
-
-        if (
-            store_status["capacity"]
-            >= store_status["level"] + store_status["reservation"] + amount
-        ):
-            store_status["reservation"] = store_status["reservation"] + amount
+        new_level = (
+            store_status["level"] + sum(store_status["reservation"].values()) + amount
+        )
+        if store_status["capacity"] >= new_level:
+            store_status["reservation"][activity_id] = amount
             return super().put(store_status), True
         else:
             return super().put(store_status), False

@@ -225,7 +225,7 @@ class ShiftAmountActivity(GenericActivity):
 
     def get_from_origin(self, origin, amount, id_="default"):
         start_time = self.env.now
-        yield origin.container.get(amount, id_)
+        yield origin.container.get(self.id, amount, id_)
         end_time = self.env.now
 
         if start_time != end_time:
@@ -250,7 +250,7 @@ class ShiftAmountActivity(GenericActivity):
 
     def put_in_destination(self, destination, amount, id_="default"):
         start_time = self.env.now
-        yield destination.container.put(amount, id_=id_)
+        yield destination.container.put(self.id, amount, id_=id_)
         end_time = self.env.now
 
         if start_time != end_time:
