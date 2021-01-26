@@ -140,24 +140,29 @@ class EventsContainer(simpy.FilterStore):
     def get_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
 
-        new_level = (
-            store_status["level"] + sum(store_status["reservation"].values()) - amount
+        new_store_status = store_status.copy()
+        new_store_status["reservation"][activity_id] = -amount
+
+        new_level = new_store_status["level"] + sum(
+            new_store_status["reservation"].values()
         )
 
         if new_level >= 0:
-            store_status["reservation"][activity_id] = -amount
-            return super().put(store_status), True
+            return super().put(new_store_status), True
         else:
             return super().put(store_status), False
 
     def put_reservation(self, activity_id, amount, id_="default"):
         store_status = super().get(lambda state: state["id"] == id_).value
-        new_level = (
-            store_status["level"] + sum(store_status["reservation"].values()) + amount
+
+        new_store_status = store_status.copy()
+        new_store_status["reservation"][activity_id] = amount
+
+        new_level = new_store_status["level"] + sum(
+            new_store_status["reservation"].values()
         )
-        if store_status["capacity"] >= new_level:
-            store_status["reservation"][activity_id] = amount
-            return super().put(store_status), True
+        if new_store_status["capacity"] >= new_level:
+            return super().put(new_store_status), True
         else:
             return super().put(store_status), False
 

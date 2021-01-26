@@ -29,11 +29,10 @@ class ParallelActivity(GenericActivity, RegisterSubProcesses, SubProcessesReserv
         self.register_subprocesses()
 
     def main_process_function(self, activity_log, env):
-        if self.reserve_activities:
-            try:
-                yield from self.reserve_sub_processes()
-            except AssertionError:
-                return
+        try:
+            yield from self.reserve_sub_processes()
+        except AssertionError:
+            return
 
         start_time = env.now
         args_data = {

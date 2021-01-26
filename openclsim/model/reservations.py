@@ -6,10 +6,9 @@ from .shift_amount_activity import ShiftAmountActivity
 class SubProcessesReservation:
     """Mixin for the activities that want to reserve the shift amout quantities of their subprocesses."""
 
-    def __init__(self, reserve_activities=False, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Class constructor."""
         super().__init__(*args, **kwargs)
-        self.reserve_activities = reserve_activities
 
     def reserve_sub_processes(self):
         reservations = []

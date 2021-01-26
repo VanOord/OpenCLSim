@@ -33,11 +33,10 @@ class ConditionProcessMixin(
 
         repetitions = 1
         while True:
-            if self.reserve_activities:
-                try:
-                    yield from self.reserve_sub_processes()
-                except AssertionError:
-                    break
+            try:
+                yield from self.reserve_sub_processes()
+            except AssertionError:
+                break
 
             self.start_sequence.succeed()
             for sub_process in self.sub_processes:
