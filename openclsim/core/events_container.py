@@ -87,12 +87,12 @@ class EventsContainer(simpy.FilterStore):
         else:
             return self._env.event()
 
-    def put(self, activity_id, amount, id_="default"):
+    def put(self, amount, id_="default", activity_id=None):
         assert self.put_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] + amount
-        if activity_id in store_status["reservation"]:
+        if activity_id and activity_id in store_status["reservation"]:
             del store_status["reservation"][activity_id]
 
         put_event = super().put(store_status)
@@ -112,12 +112,12 @@ class EventsContainer(simpy.FilterStore):
                 else:
                     return
 
-    def get(self, activity_id, amount, id_="default"):
+    def get(self, amount, id_="default", activity_id=None):
         assert self.get_available(amount=amount, id_=id_).triggered
 
         store_status = super().get(lambda state: state["id"] == id_).value
         store_status["level"] = store_status["level"] - amount
-        if activity_id in store_status["reservation"]:
+        if activity_id and activity_id in store_status["reservation"]:
             del store_status["reservation"][activity_id]
 
         get_event = super().put(store_status)

@@ -16,7 +16,10 @@ class SubProcessesReservation:
             if hasattr(sub_process, "sub_processes"):
                 reservations.extend(sub_process.reserve_sub_processes())
 
-            if isinstance(sub_process, ShiftAmountActivity):
+            if (
+                isinstance(sub_process, ShiftAmountActivity)
+                and sub_process.amount is not None
+            ):
                 get_reservation, passed = sub_process.origin.container.get_reservation(
                     sub_process.id, sub_process.amount, sub_process.id_
                 )
