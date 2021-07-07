@@ -163,14 +163,7 @@ class GenericActivity(PluginActivity):
             if expr.get("type") == "container":
                 id_ = expr.get("id_", "default")
                 obj = expr["concept"]
-                if (
-                    expr.get("opp") in ["gt", "ge", "lt", "le"]
-                    and expr.get("level") is not None
-                ):
-                    return obj.container.get_container_event(
-                        expr["level"], expr["opp"], id_=id_
-                    )
-                elif expr["state"] == "full":
+                if expr["state"] == "full":
                     return obj.container.get_full_event(id_=id_)
                 elif expr["state"] == "empty":
                     return obj.container.get_empty_event(id_=id_)
@@ -206,10 +199,6 @@ class GenericActivity(PluginActivity):
         env,
     ):
         """Return a generator which can be added as a process to a simpy environment."""
-        # Make container reservations
-        if hasattr(self, "make_container_reservation"):
-            yield from self.make_container_reservation()
-
         additional_logs = getattr(self, "additional_logs", [])
         start_event = (
             None

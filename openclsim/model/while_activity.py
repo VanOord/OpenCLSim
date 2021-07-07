@@ -10,6 +10,8 @@ class ConditionProcessMixin:
     """Mixin for the condition process."""
 
     def main_process_function(self, activity_log, env):
+        condition_event = self.parse_expression(self.condition_event)
+
         start_time = env.now
         args_data = {
             "env": env,
@@ -26,7 +28,6 @@ class ConditionProcessMixin:
             activity_state=core.LogState.START,
         )
 
-        static_condition_event = self.parse_expression(self.condition_event)
         repetitions = 1
         while True:
             self.start_sequence.succeed()
@@ -62,15 +63,7 @@ class ConditionProcessMixin:
                     },
                 )
 
-            # We check both the static and reactive event. If a event is triggered
-            # and after that defused the event is overwritten and not longer reactive.
-            # Since we cannot defuse simpy events we have to use this workaround.
-            reactive_condition_event = self.parse_expression(self.condition_event)
-            if (
-                repetitions >= self.max_iterations
-                or static_condition_event.triggered is True
-                or reactive_condition_event.triggered is True
-            ):
+            if repetitions >= self.max_iterations or condition_event.processed is True:
                 break
             else:
                 repetitions += 1
