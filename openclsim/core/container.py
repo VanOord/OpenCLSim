@@ -30,14 +30,7 @@ class HasContainer(SimpyObject):
         container_class = EventsContainer
         self.container = container_class(self.env, store_capacity=store_capacity)
         if capacity > 0:
-            initials = [
-                {
-                    "id": "default",
-                    "capacity": capacity,
-                    "level": level,
-                }
-            ]
-            self.container.initialize_container(initials)
+            self.container.initialize(capacity=capacity, init=level)
 
     def get_state(self):
         state = {}
