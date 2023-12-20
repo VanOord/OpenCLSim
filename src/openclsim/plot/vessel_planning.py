@@ -66,7 +66,7 @@ def get_gantt_chart(
           will be resolved, e.g.: [while_activity]
         * a manual id_map to resolve uuids to labels, e.g. {'uuid1':'name1'}
     """
-    if type(id_map) == list:
+    if isinstance(id_map, list):
         id_map = {act.id: act.name for act in get_subprocesses(id_map)}
     else:
         id_map = id_map if id_map else {}

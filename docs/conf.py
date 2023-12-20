@@ -48,9 +48,9 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"openclsim"
-copyright = u"2019, TU Delft"
-author = u"Mark van Koningsveld"
+project = "openclsim"
+copyright = "2019, TU Delft"
+author = "Mark van Koningsveld"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -133,8 +133,8 @@ latex_documents = [
     (
         master_doc,
         "openclsim.tex",
-        u"OpenCLSim Documentation",
-        u"Mark van Koningsveld",
+        "OpenCLSim Documentation",
+        "Mark van Koningsveld",
         "manual",
     )
 ]
@@ -144,7 +144,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "openclsim", u"OpenCLSim Documentation", [author], 1)]
+man_pages = [(master_doc, "openclsim", "OpenCLSim Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------
@@ -156,7 +156,7 @@ texinfo_documents = [
     (
         master_doc,
         "openclsim",
-        u"OpenCLSim Documentation",
+        "OpenCLSim Documentation",
         author,
         "openclsim",
         "One line description of project.",
