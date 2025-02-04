@@ -3,6 +3,7 @@ This mixin is made to calculate the production rate and energy consumption of a 
 """
 import numpy as np
 from .simpy_object import SimpyObject
+import openclsim.core as core
 
 class HasJetBeam(SimpyObject):
     def __init__(self, jet_beam_width, jet_beam_diameter, n_nozzles, velocity_water_jets, nozzle_diameter, water_jet_production, stand_of_distance,
@@ -72,8 +73,7 @@ class HasWIDProduction:
 
     """Miedema, S. A. (2019). “Production estimation of water jets in drag heads”. In: Proceedings of the Twenty-Second World Dredging Congress, WODCON XXII, p. 17."""
     """https://www.researchgate.net/publication/332174350_PRODUCTION_ESTIMATION_OF_WATER_JETS_IN_DRAG_HEADS"""
-    def calculate_production_miedema(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def calculate_production_miedema(self, env, activity,  *args, **kwargs):
 
         jet_pipe_area = ((1/4) * np.pi * self.jet_pipe_diameter **2)    # Area of jet pipe [m]
         jet_velocity_wp = self.water_jet_production / jet_pipe_area     # Jet velocity at working point [m/s]
@@ -92,18 +92,22 @@ class HasWIDProduction:
         n_cycles = (self.dredged_volume / self.dredged_area) / penetration_depth    # Number of dredging cycle repetitions [-]
         dredging_time_total = dredging_time_once * n_cycles                         # Total dredging time [s]
 
-        return production_miedema
-            
 
+        if activity.name == 'dredging':
+            production_miedema = production_miedema
         
-    def get_state(self):
-        state = {}
-        if hasattr(super(), "get_state"):
-            state = super().get_state()
+        else:
+            production_miedema = None
 
-        state.update({"production miedema": self.production_miedema.get_level()})
-        # state.update({"production miedema": self.production_miedema.get_level()})
-        # state.update({"production miedema": self.production_miedema.get_level()})
-        # state.update({"production miedema": self.production_miedema.get_level()})
-        # state.update({"production miedema": self.production_miedema.get_level()})
-        return state
+        activity.log_entry_v1(
+            t=env.now,
+            activity_id=activity.id,
+            activity_state=core.LogState.UNKNOWN,
+            additional_state={
+                "production_miedema": production_miedema,
+            }
+        )
+        return {}
+        
+
+    
