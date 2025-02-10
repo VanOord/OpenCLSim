@@ -44,33 +44,7 @@ class HasSoil(SimpyObject):
         self.initial_porosity = initial_porosity
         super().__init__(*args, **kwargs)
 
-# class HasPropeller(SimpyObject):
-#     def __init__(self, env, *args, **kwargs):
-#         super().__init__(env, *args, **kwargs)
-
 class HasWIDProduction:
-    # """Based on empirical knowledge"""
-    # def calculate_production_density(self):
-    #     cc_situ = (self.rho_cloud - self.rho_water) / (self.rho_situ - self.rho_water)     # Amount to make 1 cubic meter of situ mixture [m3]
-    #     gram_situ = cc_situ * self.rho_situ                                     # Weight of situ mixture [gram]
-
-    #     ratio_water_situ = (1000 / cc_situ) - 1                                 # Ratio of amount of water to be added to dredged volume
-    #     Volume_total_water = ratio_water_situ * self.dredged_volume             # Total water amount that needs to be injected in soil [m3]
-     
-    #     f_entrainment = self.water_jet_production / (self.dredging_speed * SoD * w_jetbar)                   # Ratio of entrainment of jets
-    #     #f_entrainment = 1
-        
-    #     T_dredging = V_total_water / (Q_jet * 3600 * f_entrainment)             # Amount of dredging hours needed [hr]
-    
-    #     V_total_jet = (Q_jet * 3600) * T_dredging                               # Total jet production [m3]
-    #     Q_injection = (Q_jet * 3600) * f_entrainment                            # Total water injected of jets + entrainment[m3/hr]
-    
-    #     Q_dredged = Q_injection / ratio_water_situ                              # Amount of situ soil dredged [m3/hr]
-
-    #     D_penetration = Q_dredged / (v_dredging * 3600 * w_jetbar)              # Depth of jet penetration [m]
-         
-    #     return locals()
-
     """Miedema, S. A. (2019). “Production estimation of water jets in drag heads”. In: Proceedings of the Twenty-Second World Dredging Congress, WODCON XXII, p. 17."""
     """https://www.researchgate.net/publication/332174350_PRODUCTION_ESTIMATION_OF_WATER_JETS_IN_DRAG_HEADS"""
     def calculate_production_miedema(self, env, activity,  *args, **kwargs):
@@ -92,13 +66,6 @@ class HasWIDProduction:
         n_cycles = (self.dredged_volume / self.dredged_area) / penetration_depth    # Number of dredging cycle repetitions [-]
         dredging_time_total = dredging_time_once * n_cycles                         # Total dredging time [s]
 
-
-        if activity.name == 'dredging':
-            production_miedema = production_miedema
-        
-        else:
-            production_miedema = None
-
         activity.log_entry_v1(
             t=env.now,
             activity_id=activity.id,
@@ -108,6 +75,3 @@ class HasWIDProduction:
             }
         )
         return {}
-        
-
-    
