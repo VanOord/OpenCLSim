@@ -9,8 +9,22 @@ from .movable import ContainerDependentMovable, Movable, MultiContainerDependent
 from .processor import LoadingFunction, Processor, UnloadingFunction
 from .resource import HasResource
 from .processor_wid import Processor_wid
-from .energy import HasSoil
-from .energy import HasWIDProduction
+from .tshd import HasDraghead
+from .tshd import HasVisor
+from .tshd import HasJetTSHD
+from .tshd import HasDredgePump
+from .tshd import HasPropellerTSHD
+from .tshd import HasSoilTSHD
+from .tshd import HasTSHDProduction
+from .tshd import HasTSHDEnergy
+from .tshd import IsTSHD
+from .wid import HasJetBeam
+from .wid import HasJetPipeWID
+from .wid import HasPropellerWID
+from .wid import HasSoilWID
+from .wid import HasWIDProduction
+from .wid import HasWIDEnergy
+from .wid import IsWID
 from .simpy_object import SimpyObject
 
 __all__ = [
@@ -30,7 +44,21 @@ __all__ = [
     "UnloadingFunction",
     "HasResource",
     "Processor_wid",
-    "HasSoil",
+    "HasDraghead",
+    "HasVisor",
+    "HasJetTSHD",
+    "HasDredgePump",
+    "HasPropellerTSHD",
+    "HasSoilTSHD",
+    "HasTSHDProduction",
+    "HasTSHDEnergy",
+    "IsTSHD",
+    "HasJetBeam",
+    "HasJetPipeWID",
+    "HasPropellerWID",
+    "HasSoilWID",
     "HasWIDProduction",
+    "HasWIDEnergy",
+    "IsWID",
     "SimpyObject",
 ]
