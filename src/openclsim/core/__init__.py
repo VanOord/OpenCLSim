@@ -9,10 +9,8 @@ from .movable import ContainerDependentMovable, Movable, MultiContainerDependent
 from .processor import LoadingFunction, Processor, UnloadingFunction
 from .resource import HasResource
 from .processor_wid import Processor_wid
-from .energy_wid import HasJetBeam
-from .energy_wid import HasJetPipe
-from .energy_wid import HasSoil
-from .energy_wid import HasWIDProduction
+from .energy import HasSoil
+from .energy import HasWIDProduction
 from .simpy_object import SimpyObject
 
 __all__ = [
@@ -32,8 +30,6 @@ __all__ = [
     "UnloadingFunction",
     "HasResource",
     "Processor_wid",
-    "HasJetBeam",
-    "HasJetPipe",
     "HasSoil",
     "HasWIDProduction",
     "SimpyObject",

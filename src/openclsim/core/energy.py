@@ -6,6 +6,7 @@ from .simpy_object import SimpyObject
 import openclsim.core as core
 from .log import Log, LogState, PerformsActivity
 
+
 class HasJetBeam(SimpyObject):
     def __init__(self, jet_beam_width, jet_beam_diameter, n_nozzles, velocity_water_jets, nozzle_diameter, water_jet_production, stand_of_distance,
                 dredging_speed, nozzle_pressure, undrained_shear_strength, jet_contraction_coefficient, *args, **kwargs):
@@ -22,6 +23,7 @@ class HasJetBeam(SimpyObject):
         self.jet_contraction_coefficient = jet_contraction_coefficient
         super().__init__(*args, **kwargs)
 
+
 class HasJetPipe(SimpyObject):
     def __init__(self, jet_pipe_length, attachment_cable_length, jet_pipe_diameter, rhu_jet_pipe, c_drag, *args, **kwargs):
         self.jet_pipe_length = jet_pipe_length
@@ -29,10 +31,14 @@ class HasJetPipe(SimpyObject):
         self.jet_pipe_diameter = jet_pipe_diameter
         self.rhu_jet_pipe = rhu_jet_pipe
         self.c_drag = c_drag
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)        
+
 
 class HasSoil(SimpyObject):
-    def __init__(self, rho_situ, rho_particle, rho_water, rho_cloud, saturation, dredged_volume, dredged_area, mass_flux_coefficient, grain_size_diameter, initial_porosity, *args, **kwargs):
+    def __init__(self, rho_situ, rho_particle, rho_water,
+                 rho_cloud, saturation, dredged_volume,
+                 dredged_area, mass_flux_coefficient, grain_size_diameter,
+                 initial_porosity, *args, **kwargs):
         self.rho_situ = rho_situ
         self.rho_particle = rho_particle
         self.rho_water = rho_water
@@ -48,37 +54,51 @@ class HasSoil(SimpyObject):
 class HasWIDProduction(Log):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-    """Miedema, S. A. (2019). “Production estimation of water jets in drag heads”. In: Proceedings of the Twenty-Second World Dredging Congress, WODCON XXII, p. 17."""
+
+    """Miedema, S. A. (2019). “Production estimation of water jets in drag heads”.
+    In: Proceedings of the Twenty-Second World Dredging Congress, WODCON XXII, p. 17."""
     """https://www.researchgate.net/publication/332174350_PRODUCTION_ESTIMATION_OF_WATER_JETS_IN_DRAG_HEADS"""
+    
     def calculate_production_miedema(self, env, *args, **kwargs):
 
         jet_pipe_area = ((1/4) * np.pi * self.jet_pipe_diameter **2)    # Area of jet pipe [m]
         jet_velocity_wp = self.water_jet_production / jet_pipe_area     # Jet velocity at working point [m/s]
         
         nozzle_pressure_loss = (1/2) * self.rho_water * ((4 * self.water_jet_production) / 
-                                                         (self.jet_contraction_coefficient * np.pi * self.nozzle_diameter**2 * self.n_nozzles)) ** 2    # Pressure loss over nozzle at working point [Pa]
+                                                         (self.jet_contraction_coefficient * np.pi *
+                                                          self.nozzle_diameter**2 * self.n_nozzles)) ** 2   
+                                                          # Pressure loss over nozzle at working point [Pa]
 
         """Equation (13)"""
-        penetration_depth = np.sqrt((self.mass_flux_coefficient * self.rho_water * self.jet_contraction_coefficient * jet_pipe_area * jet_velocity_wp * (2 * nozzle_pressure_loss / self.rho_water)**0.5) / 
-                                    (self.rho_particle * (1 - self.initial_porosity) * self.dredging_speed**2))     # Penetration depth [m]
+        penetration_depth = np.sqrt((self.mass_flux_coefficient * self.rho_water * self.jet_contraction_coefficient *
+                                     jet_pipe_area * jet_velocity_wp * (2 * nozzle_pressure_loss / self.rho_water)**0.5) / 
+                                    (self.rho_particle * (1 - self.initial_porosity) * self.dredging_speed**2)) 
+                                    # Penetration depth [m]
 
         area_production = self.dredging_speed * self.jet_beam_width     # Area production [m2/s]
         production_miedema = area_production * penetration_depth        # Amount of situ soil dredged [m3/s]
-        dredging_time_once = self.dredged_area / (area_production)                  # Dredging time of one cycle [s]
-        n_cycles = (self.dredged_volume / self.dredged_area) / penetration_depth    # Number of dredging cycle repetitions [-]
-        dredging_time_total = dredging_time_once * n_cycles                         # Total dredging time [s]
 
         self.log_entry_v1(
             env.now,
             core.LogState.UNKNOWN,
             {"production_miedema": production_miedema}
             )
-        return {}
-    
-    # def get_state(self):
-    #     state = {}
-    #     if hasattr(super(), "get_state"):
-    #         state = super().get_state()
+        
+        return {
+            "production_miedema": production_miedema,
+        }
 
-    #     state.update({"production_miedema": HasWIDProduction.production_miedema.get_level()})
-    #     return state
+class IsWID(HasWIDProduction, HasJetBeam, HasJetPipe):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+
+
+
+
+
+
+
+
+
