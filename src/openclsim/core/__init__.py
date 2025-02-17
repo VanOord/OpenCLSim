@@ -19,7 +19,7 @@ from .tshd import HasTSHDProduction
 from .tshd import HasTSHDEnergy
 from .tshd import IsTSHD
 from .wid import HasJetBeam
-from .wid import HasJetPipeWID
+from .wid import HasJetPipe
 from .wid import HasPropellerWID
 from .wid import HasSoilWID
 from .wid import HasWIDProduction
@@ -54,7 +54,7 @@ __all__ = [
     "HasTSHDEnergy",
     "IsTSHD",
     "HasJetBeam",
-    "HasJetPipeWID",
+    "HasJetPipe",
     "HasPropellerWID",
     "HasSoilWID",
     "HasWIDProduction",
