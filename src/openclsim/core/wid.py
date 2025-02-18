@@ -70,20 +70,23 @@ class HasSoilWID(SimpyObject):
         super().__init__(*args, **kwargs)
 
 
-class HasWIDProduction(HasJetBeam, Log):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+
+class HasWIDProduction(HasJetBeam,  HasJetPipe, HasSoilWID, Log):
+    def __init__(self, origin, destination, processor, *args, **kwargs):
+        super().__init__(origin, destination, processor, *args, **kwargs)
+        self.origin = origin
+        self.destination = destination
+        self.processor = processor
 
     """Miedema, S. A. (2019). “Production estimation of water jets in drag heads”.
     In: Proceedings of the Twenty-Second World Dredging Congress, WODCON XXII, p. 17."""
     """https://www.researchgate.net/publication/332174350_PRODUCTION_ESTIMATION_OF_WATER_JETS_IN_DRAG_HEADS"""
     
-    def shift_amount_fcn(self, origin, destination):
-        self.calculate_production_miedema
+    # def shift_amount_fcn(self, origin, destination):
+    #     self.calculate_production_miedema
 
 
-    def calculate_production_miedema(self, env, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def post_process(self, env, activity, activity_log, start_preprocessing, start_activity):
         
         jet_pipe_area = ((1/4) * np.pi * self.jet_pipe_diameter **2)    # Area of jet pipe [m]
         jet_velocity_wp = self.water_jet_production / jet_pipe_area     # Jet velocity at working point [m/s]
@@ -101,16 +104,76 @@ class HasWIDProduction(HasJetBeam, Log):
 
         area_production = self.dredging_speed * self.jet_beam_width     # Area production [m2/s]
         production_miedema = area_production * penetration_depth        # Amount of situ soil dredged [m3/s]
-
-        self.log_entry_v1(
-            env.now,
-            core.LogState.UNKNOWN,
-            {"production_miedema": production_miedema}
-            )
         
+        time_one_cycle = self.dredged_area / area_production
+        n_cycles = (self.dredged_volume / self.dredged_area) / penetration_depth
+        total_time = time_one_cycle * n_cycles
+
+        if activity.name == 'dredging_trip':
+            production_miedema = production_miedema
+            activity_duration = env.now - start_activity
+            
+        if activity.name == 'dredging':
+            production_miedema = production_miedema
+            activity_duration = env.now - start_activity
+
+        if activity.name == 'port_trip':
+            production_miedema = production_miedema
+            activity_duration = env.now - start_activity
+        
+        activity.log_entry_v1(
+            t=env.now,
+            activity_id=activity.id,
+            activity_state=core.LogState.UNKNOWN,
+            additional_state={
+                "production_miedema": production_miedema,
+                "activity_duration": activity_duration,
+            }
+        )
+        print("S")
         return {
             "production_miedema": production_miedema,
+            "activity_duration": activity_duration,
         }
+
+        # self.log_entry_v1(
+        #     env.now,
+        #     core.LogState.UNKNOWN,
+        #     {"production_miedema": production_miedema},
+        #     {"total_time": total_time}
+        #     )
+
+
+    # def post_process(
+    #     self, env, activity, start_activity, start_preprocessing, *args, **kwargs
+    # ):
+        
+    #     if activity.name == 'dredging_trip':
+    #         production_miedema = production_miedema
+    #         activity_duration = env.now - start_activity
+            
+    #     if activity.name == 'dredging':
+    #         production_miedema = production_miedema
+    #         activity_duration = env.now - start_activity
+
+    #     if activity.name == 'port_trip':
+    #         production_miedema = production_miedema
+    #         activity_duration = env.now - start_activity
+
+    #     activity.log_entry_v1(
+    #         t=env.now,
+    #         activity_id=activity.id,
+    #         activity_state=core.LogState.UNKNOWN,
+    #         additional_state={
+    #             "production_miedema": production_miedema,
+    #             "activity_duration": activity_duration,
+    #         }
+    #     )
+    #     return {}
+        
+
+
+
     
 
 class HasWIDEnergy(Log):
